@@ -1,8 +1,8 @@
 all: lint test
 
 # Parameters of minitig
-w=64
 k=32
+w=48
 
 # Number of threads
 t=16
@@ -26,18 +26,38 @@ lint:
 	pylint --rcfile=.pylintrc minitig
 
 # Test Minitig.
-test: mt.minitig
+test: mt.pe.minitig.gv.pdf
 
 # Download the human mitochondrial genome.
 mt.fa:
 	curl ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/GCA_000001405.15_GRCh38_assembly_structure/non-nuclear/assembled_chromosomes/FASTA/chrMT.fna.gz \
-	| gunzip -c | seqtk seq >$@
+	| gunzip -c | tr -d N | seqtk seq >$@
+
+# Convert Postscript to PDF.
+%.pdf: %.ps
+	pstopdf -o $@ $<
 
 # Simulate paired-end reads using wgsim.
 %.pe.fq.gz: %.fa
-	wgsim -r 0 -d 400 -s 100 -1 150 -2 150 -S 1 -N 3000 $< $*.pe.1.fq $*.pe.2.fq
+	wgsim -e 0 -r 0 -d 400 -s 100 -1 150 -2 150 -S 99 -N 3000 $< $*.pe.1.fq $*.pe.2.fq
 	seqtk mergepe $*.pe.1.fq $*.pe.2.fq | $(gzip) >$@
 	rm -f $*.pe.1.fq $*.pe.2.fq
+
+# Correct reads using BFC.
+%.bfc.fq.gz: %.fq.gz
+	bfc -t$t -Q $< | $(gzip) >$@
+
+# Map reads to the reference using minimap2.
+%.$(ref).sort.bam: $(ref).fa %.fq.gz
+	minimap2 -a -x sr $^ | samtools sort -o $@
+
+# Index a BAM file with samtools.
+%.sort.bam.bai: %.sort.bam
+	samtools index $<
+
+# Create a dot plot using minidot from miniasm.
+%.minidot.ps: %.paf.gz
+	minidot $< >$@
 
 # Index a FASTA file with Minitig.
 %.minitig.json: %.fa
