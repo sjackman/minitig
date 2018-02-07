@@ -37,6 +37,7 @@ def minitig_index():
 	for filename in ARGS.FASTA:
 		with open(filename) as fin:
 			for _, seq in read_fasta(fin):
+				seq = seq.upper()
 				print(minimerize(ARGS.k, ARGS.w, seq))
 
 def minitig_map():
@@ -45,6 +46,7 @@ def minitig_map():
 	for filename in ARGS.FASTA:
 		with open(filename) as fin:
 			for name, seq in read_fasta(fin):
+				seq = seq.upper()
 				print("//", name)
 				minimizers = minimerize(ARGS.k, ARGS.w, seq)
 				for u, v in zip(minimizers, minimizers[1:]):
