@@ -1,4 +1,7 @@
+*.bam
+*.bam.bai
 *.fa
+*.fa.fai
 *.fq.gz
 *.gv
 *.pdf
