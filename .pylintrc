@@ -1,0 +1,7 @@
+[basic]
+extension-pkg-whitelist=cityhash
+good-names = i, k, u, v, w
+indent-string='\t'
+
+[messages control]
+disable=C0330
