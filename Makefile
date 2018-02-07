@@ -45,7 +45,7 @@ mt.fa:
 
 # Correct reads using BFC.
 %.bfc.fq.gz: %.fq.gz
-	bfc -t$t -Q $< | $(gzip) >$@
+	bfc -t$t $< | $(gzip) >$@
 
 # Map reads to the reference using minimap2.
 %.$(ref).sort.bam: $(ref).fa %.fq.gz
