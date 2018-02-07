@@ -1,0 +1,5 @@
+*.fa
+*.fq.gz
+*.gv
+*.pdf
+__pycache__/*
