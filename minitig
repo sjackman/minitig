@@ -117,15 +117,15 @@ def minimerize(k, w, seq):
 	return minimizers
 
 def minitig_index():
-	"Index a set of sequences"
+	"Index a set of sequences."
 	for filename in ARGS.FASTA:
 		with open(filename) as fin:
 			for _, seq in read_fasta(fin):
 				seq = seq.upper()
 				print(minimerize(ARGS.k, ARGS.w, seq))
 
-def minitig_map():
-	"Map sequences"
+def minitig_graph():
+	"Create a graph of the minimizers."
 	print("strict digraph {")
 	for filename in ARGS.FASTA:
 		with open(filename) as fin:
@@ -148,7 +148,7 @@ def parse_arguments():
 		help="number of k-mers in a window of size k + w - 1 bp")
 	argparser.add_argument(
 		"command",
-		help="One of the commands: index or map")
+		help="One of the commands: index or graph")
 	argparser.add_argument(
 		"FASTA", nargs="+",
 		help="FASTA file of sequences to be assembled")
@@ -159,8 +159,8 @@ def main():
 	ARGS.FASTA = ["/dev/stdin" if s == "-" else s for s in ARGS.FASTA]
 	if ARGS.command == "index":
 		minitig_index()
-	elif ARGS.command == "map":
-		minitig_map()
+	elif ARGS.command == "graph":
+		minitig_graph()
 	else:
 		print("Unrecognized command: ", ARGS.command, file=sys.stderr)
 		exit(1)
