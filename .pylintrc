@@ -1,6 +1,6 @@
 [basic]
 extension-pkg-whitelist=cityhash
-good-names = i, k, u, v, w
+good-names = c, i, k, u, v, w, x, xs
 indent-string='\t'
 
 [messages control]
