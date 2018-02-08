@@ -1,5 +1,3 @@
-all: lint test
-
 # Parameters of minitig
 k=32
 w=48
@@ -15,6 +13,8 @@ export SHELL=zsh -e -o pipefail
 export REPORTTIME=1
 export TIMEFMT=time user=%U system=%S elapsed=%E cpu=%P memory=%M job=%J
 
+all: lint test
+
 .DELETE_ON_ERROR:
 .SECONDARY:
 
@@ -26,7 +26,15 @@ lint:
 	pylint --rcfile=.pylintrc minitig
 
 # Test Minitig.
-test: mt.pe.minitig.gv.pdf
+test: \
+	mt.pe.bfc.minitig.fa \
+	mt.pe.bfc.minitig.mt.sort.bam.bai \
+	mt.pe.bfc.minitig.gv.pdf
+
+test2: \
+	mt.pe.minitig.fa \
+	mt.pe.minitig.mt.sort.bam.bai \
+	mt.pe.minitig.gv.pdf
 
 # Download the human mitochondrial genome.
 mt.fa:
@@ -37,48 +45,70 @@ mt.fa:
 %.pdf: %.ps
 	pstopdf -o $@ $<
 
+################################################################################
+# Samtools
+
 # Simulate paired-end reads using wgsim.
 %.pe.fq.gz: %.fa
-	wgsim -e 0 -r 0 -d 400 -s 100 -1 150 -2 150 -S 99 -N 3000 $< $*.pe.1.fq $*.pe.2.fq
+	wgsim -e 0.01 -r 0 -d 400 -s 100 -1 150 -2 150 -S 99 -N 3000 $< $*.pe.1.fq $*.pe.2.fq
 	seqtk mergepe $*.pe.1.fq $*.pe.2.fq | $(gzip) >$@
 	rm -f $*.pe.1.fq $*.pe.2.fq
-
-# Correct reads using BFC.
-%.bfc.fq.gz: %.fq.gz
-	bfc -t$t $< | $(gzip) >$@
-
-# Map reads to the reference using minimap2.
-%.$(ref).sort.bam: $(ref).fa %.fq.gz
-	minimap2 -a -x sr $^ | samtools sort -o $@
 
 # Index a BAM file with samtools.
 %.sort.bam.bai: %.sort.bam
 	samtools index $<
 
-# Create a dot plot using minidot from miniasm.
+################################################################################
+# BFC
+
+# Correct reads.
+%.bfc.fq.gz: %.fq.gz
+	bfc -t$t $< | $(gzip) >$@
+
+################################################################################
+# Minimap2
+
+# Map sequences to the reference.
+%.$(ref).sort.bam: $(ref).fa %.fa
+	minimap2 -a -x asm10 $^ | samtools sort -o $@
+
+# Map reads to the reference.
+%.$(ref).sort.bam: $(ref).fa %.fq.gz
+	minimap2 -a -x sr $^ | samtools sort -o $@
+
+################################################################################
+# Miniasm
+
+# Create a dot plot.
 %.minidot.ps: %.paf.gz
 	minidot $< >$@
 
-# Index a FASTA file with Minitig.
+################################################################################
+# Minitig
+
+# Index a FASTA file.
 %.minitig.json: %.fa
 	./minitig index -k$k -w$w $< >$@
 
-# Index a FASTQ file with Minitig.
+# Index a FASTQ file.
 %.minitig.json: %.fq.gz
 	gunzip -c $< | ./minitig index -k$k -w$w - >$@
 
-# Map sequences with Minitig.
+# Create a graph of minimizers of a FASTA file.
 %.minitig.gv: %.fa
-	./minitig map -k$k -w$w $< >$@
+	./minitig graph -k$k -w$w $< >$@
 
-# Map sequences with Minitig.
+# Create a graph of minimizers of a FASTQ file.
 %.minitig.gv: %.fq.gz
-	gunzip -c $< | ./minitig map -k$k -w$w - >$@
+	gunzip -c $< | ./minitig graph -k$k -w$w - >$@
 
-# Convert Minitig JSON to GraphViz.
-%.minitig.tsv: %.minitig.json
-	jq . $< | sed 's/^  /{ "u": /;s/,$$/ },/;s/^]$$/} ]/' | mlr --ijson --otsvlite cat >$@
+# Assemble a FASTQ file.
+%.minitig.fa: %.fq.gz
+	gunzip -c $< | ./minitig assemble -k$k -w$w -g $*.minitig.fa.gv - >$@
 
-# Render a graph with GraphViz.
+################################################################################
+# Graphviz
+
+# Render a graph using dot.
 %.gv.pdf: %.gv
 	dot -Tpdf -o $@ $<
