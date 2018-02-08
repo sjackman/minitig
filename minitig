@@ -116,6 +116,145 @@ def minimerize(k, w, seq):
 			minimizers.append(minimizer)
 	return minimizers
 
+def overlap(a, b):
+	"Find the longest overlap of two strings and return the consensus."
+	if a == "":
+		return b
+	for i in reversed(range(1, min(len(a), len(b)))):
+		if a[-i:] == b[0:i]:
+			return a + b[i:]
+	return a + "-" + b
+
+class Graph:
+	"A graph of minimizers."
+
+	def __init__(self):
+		"Create an empty graph."
+		self.vertices = {}
+		self.seqs = {}
+		self.edges = {}
+		self.in_degrees = {}
+
+	def out_degree(self, u):
+		"Return the out-degree of vertex u."
+		return len(self.edges[u])
+
+	def in_degree(self, u):
+		"Return the in-degree of vertex u."
+		return self.in_degrees[u]
+
+	def seq(self, u):
+		"Return the sequence of vertex u."
+		return self.seqs[u] if u in self.seqs else unhash_kmer(u, ARGS.k)
+
+	def remove_vertex(self, u):
+		"Remove a vertex from the graph."
+		del self.vertices[u]
+		del self.edges[u]
+		if u in self.seqs:
+			del self.seqs[u]
+
+	def add_vertex(self, u):
+		"Add a vertex to the graph."
+		if u in self.vertices:
+			self.vertices[u] += 1
+		else:
+			self.vertices[u] = 1
+			self.edges[u] = {}
+			self.in_degrees[u] = 0
+
+	def add_edge(self, u, v):
+		"Add an edge to the graph."
+		if v in self.edges[u]:
+			self.edges[u][v] += 1
+		else:
+			self.edges[u][v] = 1
+			self.in_degrees[v] += 1
+
+	def remove_edge(self, u, v):
+		"Remove an edge from the graph."
+		assert self.in_degrees[v] > 0
+		self.in_degrees[v] -= 1
+		del self.edges[u][v]
+
+	def add_path(self, path):
+		"Add a path to the graph."
+		for u in path:
+			self.add_vertex(u)
+		for u, v in zip(path, path[1:]):
+			self.add_edge(u, v)
+
+	def add_sequence(self, seq):
+		"Add a sequence to the graph."
+		self.add_path(minimerize(ARGS.k, ARGS.w, seq))
+
+	def follow_path(self, u):
+		"Follow the path starting at u."
+		path = [u]
+		while self.out_degree(u) == 1:
+			u = next(iter(self.edges[u]))
+			if self.in_degree(u) != 1:
+				break
+			path.append(u)
+		return path
+
+	def contract_path(self, path):
+		"Contract the edges in the path."
+		if len(path) == 1:
+			return
+		count = 0
+		seq = ""
+		for u in path:
+			count += self.vertices[u]
+			seq = overlap(seq, self.seq(u))
+		vs = self.edges[path[-1]]
+		self.remove_edge(path[0], path[1])
+		for u in path[1:]:
+			self.remove_vertex(u)
+		u = path[0]
+		self.seqs[u] = seq
+		self.vertices[u] = count
+		for v in vs:
+			self.add_edge(u, v)
+
+	def compact(self):
+		"Compact the graph by contracting all simple paths."
+		for u in list(self.vertices):
+			if u not in self.vertices:
+				continue
+			self.contract_path(self.follow_path(u))
+
+	def write_fasta(self, fout):
+		"Write this graph to a FASTA file."
+		for u in self.vertices:
+			seq = self.seq(u)
+			print(">", u, " LN:i:", len(seq), " mc:i:", self.vertices[u], "\n",
+				seq,
+				sep="", file=fout)
+
+	def write_graphviz(self, fout):
+		"Write this graph to a Graphviz file."
+		print("strict digraph {", file=fout)
+		for u in self.vertices:
+			print(u, " [label=", self.vertices[u], "]", sep="", file=fout)
+		for u in self.vertices:
+			for v in self.edges[u]:
+				print(u, " -> ", v, " [label=", self.edges[u][v], "]", sep="", file=fout)
+		print("}", file=fout)
+
+def minitig_assemble():
+	"Assemble unitigs and produce FASTA."
+	for filename in ARGS.FASTA:
+		with open(filename) as fin:
+			g = Graph()
+			for _, seq in read_fasta(fin):
+				g.add_sequence(seq.upper())
+			g.compact()
+			g.write_fasta(sys.stdout)
+			if ARGS.graph != None:
+				with open(ARGS.graph, "w") as fout:
+					g.write_graphviz(fout)
+
 def minitig_index():
 	"Index a set of sequences."
 	for filename in ARGS.FASTA:
@@ -126,16 +265,12 @@ def minitig_index():
 
 def minitig_graph():
 	"Create a graph of the minimizers."
-	print("strict digraph {")
+	g = Graph()
 	for filename in ARGS.FASTA:
 		with open(filename) as fin:
-			for name, seq in read_fasta(fin):
-				seq = seq.upper()
-				print("//", name)
-				minimizers = minimerize(ARGS.k, ARGS.w, seq)
-				for u, v in zip(minimizers, minimizers[1:]):
-					print(unhash_kmer(u, ARGS.k), "->", unhash_kmer(v, ARGS.k))
-	print("}")
+			for _, seq in read_fasta(fin):
+				g.add_sequence(seq.upper())
+	g.write_graphviz(sys.stdout)
 
 def parse_arguments():
 	"Parse the command line arguments."
@@ -147,8 +282,11 @@ def parse_arguments():
 		"-w", "--window", action="store", dest="w", type=int, required=True,
 		help="number of k-mers in a window of size k + w - 1 bp")
 	argparser.add_argument(
+		"-g", "--graph", action="store",
+		help="write the graph to a file")
+	argparser.add_argument(
 		"command",
-		help="One of the commands: index or graph")
+		help="A command: assemble, graph, index")
 	argparser.add_argument(
 		"FASTA", nargs="+",
 		help="FASTA file of sequences to be assembled")
@@ -157,10 +295,12 @@ def parse_arguments():
 def main():
 	"Process each file specified on the command line"
 	ARGS.FASTA = ["/dev/stdin" if s == "-" else s for s in ARGS.FASTA]
-	if ARGS.command == "index":
-		minitig_index()
+	if ARGS.command == "assemble":
+		minitig_assemble()
 	elif ARGS.command == "graph":
 		minitig_graph()
+	elif ARGS.command == "index":
+		minitig_index()
 	else:
 		print("Unrecognized command: ", ARGS.command, file=sys.stderr)
 		exit(1)
