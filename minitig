@@ -149,8 +149,11 @@ class Graph:
 
 	def remove_vertex(self, u):
 		"Remove a vertex from the graph."
-		del self.vertices[u]
+		for v in self.edges[u]:
+			assert self.in_degrees[v] > 0
+			self.in_degrees[v] -= 1
 		del self.edges[u]
+		del self.vertices[u]
 		if u in self.seqs:
 			del self.seqs[u]
 
@@ -187,6 +190,31 @@ class Graph:
 	def add_sequence(self, seq):
 		"Add a sequence to the graph."
 		self.add_path(minimerize(ARGS.k, ARGS.w, seq))
+
+	def erode_vertex(self, e, u):
+		"Remove a terminal vertex with weight < e."
+		if self.vertices[u] < e and self.in_degree(u) == 0:
+			vs = self.edges[u]
+			self.remove_vertex(u)
+			for v in vs:
+				self.erode_vertex(e, v)
+
+	def erode(self, min_e):
+		"Remove terminal vertices with weight < min_e."
+		for u in list(self.vertices):
+			if u in self.vertices:
+				self.erode_vertex(min_e, u)
+		n = 1
+		while n > 0:
+			n = 0
+			for u in list(self.vertices):
+				if u not in self.vertices:
+					continue
+				for v in list(self.edges[u]):
+					if self.vertices[v] < min_e and self.out_degree(v) == 0 and self.in_degree(v) == 1:
+						self.remove_edge(u, v)
+						self.remove_vertex(v)
+						n += 1
 
 	def follow_path(self, u):
 		"Follow the path starting at u."
@@ -249,6 +277,7 @@ def minitig_assemble():
 			g = Graph()
 			for _, seq in read_fasta(fin):
 				g.add_sequence(seq.upper())
+			g.erode(ARGS.e)
 			g.compact()
 			g.write_fasta(sys.stdout)
 			if ARGS.graph != None:
@@ -281,6 +310,9 @@ def parse_arguments():
 	argparser.add_argument(
 		"-w", "--window", action="store", dest="w", type=int, required=True,
 		help="number of k-mers in a window of size k + w - 1 bp")
+	argparser.add_argument(
+		"-e", "--erode", action="store", dest="e", type=int, default=2,
+		help="erode terminal minimizers with frequency less than the threshold")
 	argparser.add_argument(
 		"-g", "--graph", action="store",
 		help="write the graph to a file")
