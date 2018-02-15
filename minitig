@@ -149,6 +149,7 @@ class Graph:
 
 	def remove_vertex(self, u):
 		"Remove a vertex from the graph."
+		assert self.in_degrees[u] == 0
 		for v in self.edges[u]:
 			assert self.in_degrees[v] > 0
 			self.in_degrees[v] -= 1
@@ -191,19 +192,19 @@ class Graph:
 		"Add a sequence to the graph."
 		self.add_path(minimerize(ARGS.k, ARGS.w, seq))
 
-	def erode_vertex(self, e, u):
-		"Remove a terminal vertex with weight < e."
-		if self.vertices[u] < e and self.in_degree(u) == 0:
+	def erode_vertex(self, min_weight, u):
+		"Remove a terminal vertex with weight < min_weight."
+		if self.vertices[u] < min_weight and self.in_degree(u) == 0:
 			vs = self.edges[u]
 			self.remove_vertex(u)
 			for v in vs:
-				self.erode_vertex(e, v)
+				self.erode_vertex(min_weight, v)
 
-	def erode(self, min_e):
-		"Remove terminal vertices with weight < min_e."
+	def erode(self, min_weight):
+		"Remove terminal vertices with weight < min_weight."
 		for u in list(self.vertices):
 			if u in self.vertices:
-				self.erode_vertex(min_e, u)
+				self.erode_vertex(min_weight, u)
 		n = 1
 		while n > 0:
 			n = 0
@@ -211,7 +212,7 @@ class Graph:
 				if u not in self.vertices:
 					continue
 				for v in list(self.edges[u]):
-					if self.vertices[v] < min_e and self.out_degree(v) == 0 and self.in_degree(v) == 1:
+					if self.vertices[v] < min_weight and self.out_degree(v) == 0 and self.in_degree(v) == 1:
 						self.remove_edge(u, v)
 						self.remove_vertex(v)
 						n += 1
