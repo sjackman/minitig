@@ -1,6 +1,6 @@
 # Parameters of minitig
 k=32
-w=48
+w=28
 
 # Number of threads
 t=16
