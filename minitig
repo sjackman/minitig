@@ -301,6 +301,20 @@ class Graph:
 				overlap = overlap_int(self.seq(u), self.seq(v))
 				print("L\t", u, "\t+\t", v, "\t+\t", overlap, "M\tRC:i:", self.edges[u][v], sep="", file=fout)
 
+	def write_gfa2(self, fout):
+		"Write this graph to a GFA2 file."
+		print("H\tVN:Z:2.0", file=fout)
+		for u in self.vertices:
+			seq = self.seq(u)
+			print("S\t", u, "\t", len(seq), "\t", seq, "\tRC:i:", self.vertices[u], sep="", file=fout)
+		for u in self.vertices:
+			for v in self.edges[u]:
+				useq, vseq = self.seq(u), self.seq(v)
+				overlap = overlap_int(useq, vseq)
+				print("E\t*\t", u, "+\t", v, "+\t",
+					len(useq) - overlap, "\t", len(useq), "$\t0\t", overlap, "\t", overlap, "M",
+					"\tRC:i:", self.edges[u][v], sep="", file=fout)
+
 	def write_graphviz(self, fout):
 		"Write this graph to a Graphviz file."
 		print("strict digraph {", file=fout)
@@ -315,6 +329,8 @@ class Graph:
 		"Write this graph to a file."
 		if ARGS.graph_format == GraphFormat.GFA1:
 			self.write_gfa1(fout)
+		elif ARGS.graph_format == GraphFormat.GFA2:
+			self.write_gfa2(fout)
 		elif ARGS.graph_format == GraphFormat.GV:
 			self.write_graphviz(fout)
 
@@ -353,7 +369,8 @@ def minitig_graph():
 class GraphFormat(Enum):
 	"Graph file format"
 	GFA1 = 1
-	GV = 2
+	GFA2 = 2
+	GV = 3
 
 def parse_arguments():
 	"Parse the command line arguments."
@@ -378,8 +395,11 @@ def parse_arguments():
 		default=GraphFormat.GFA1,
 		help="output graph in GFA1 format [default]")
 	argparser.add_argument(
+		"--gfa2", action="store_const", dest="graph_format", const=GraphFormat.GFA2,
+		help="output graph in GFA2 format [GFA1]")
+	argparser.add_argument(
 		"--gv", action="store_const", dest="graph_format", const=GraphFormat.GV,
-		help="output graph in GraphViz format [GFA]")
+		help="output graph in GraphViz format [GFA1]")
 	argparser.add_argument(
 		"command",
 		help="A command: assemble, graph, index")
