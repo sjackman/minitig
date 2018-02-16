@@ -1,1 +1,1 @@
-brew 'python3'
+brew 'pypy3'
