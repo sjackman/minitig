@@ -1,6 +1,7 @@
 # Parameters of minitig
 k=32
 w=28
+f=3
 
 # Number of threads
 t=16
@@ -29,12 +30,10 @@ lint:
 test: \
 	mt.pe.bfc.minitig.fa \
 	mt.pe.bfc.minitig.mt.sort.bam.bai \
-	mt.pe.bfc.minitig.gv.pdf
-
-test2: \
+	mt.pe.bfc.minitig.fa.gv.pdf \
 	mt.pe.minitig.fa \
 	mt.pe.minitig.mt.sort.bam.bai \
-	mt.pe.minitig.gv.pdf
+	mt.pe.minitig.fa.gv.pdf
 
 # Download the human mitochondrial genome.
 mt.fa:
@@ -104,7 +103,7 @@ mt.fa:
 
 # Assemble a FASTQ file.
 %.minitig.fa: %.fq.gz
-	gunzip -c $< | ./minitig assemble -k$k -w$w -g $*.minitig.fa.gv - >$@
+	gunzip -c $< | ./minitig assemble -k$k -w$w -f$f -g $*.minitig.fa.gv - >$@
 
 ################################################################################
 # Graphviz
