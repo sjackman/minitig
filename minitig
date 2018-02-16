@@ -194,6 +194,8 @@ class Graph:
 
 	def remove_light_vertices(self, min_weight):
 		"Remove vertices with weight < ming_weight."
+		if min_weight < 2:
+			return
 		for u in list(self.vertices):
 			self.in_degrees[u] = 0
 			if self.vertices[u] >= min_weight:
@@ -219,6 +221,8 @@ class Graph:
 
 	def erode(self, min_weight):
 		"Remove terminal vertices with weight < min_weight."
+		if min_weight < 2:
+			return
 		for u in list(self.vertices):
 			if u in self.vertices:
 				self.erode_vertex(min_weight, u)
@@ -295,7 +299,8 @@ def minitig_assemble():
 			g = Graph()
 			for _, seq in read_fasta(fin):
 				g.add_sequence(seq.upper())
-			g.remove_light_vertices(ARGS.e)
+			g.remove_light_vertices(ARGS.f)
+			g.erode(ARGS.e)
 			g.compact()
 			g.write_fasta(sys.stdout)
 			if ARGS.graph != None:
@@ -329,8 +334,11 @@ def parse_arguments():
 		"-w", "--window", action="store", dest="w", type=int, required=True,
 		help="number of k-mers in a window of size k + w - 1 bp")
 	argparser.add_argument(
-		"-e", "--erode", action="store", dest="e", type=int, default=2,
-		help="erode terminal minimizers with frequency less than the threshold")
+		"-f", "--frequency", action="store", dest="f", type=int, default=2,
+		help="remove minimizers with frequency less than the threshold [2]")
+	argparser.add_argument(
+		"-e", "--erode", action="store", dest="e", type=int, default=0,
+		help="erode terminal minimizers with frequency less than the threshold [0]")
 	argparser.add_argument(
 		"-g", "--graph", action="store",
 		help="write the graph to a file")
