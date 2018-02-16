@@ -286,7 +286,7 @@ class Graph:
 		"Write this graph to a FASTA file."
 		for u in self.vertices:
 			seq = self.seq(u)
-			print(">", u, " LN:i:", len(seq), " RC:i:", self.vertices[u], "\n",
+			print(">", u, " LN:i:", len(seq), " KC:i:", self.vertices[u], "\n",
 				seq,
 				sep="", file=fout)
 
@@ -295,25 +295,25 @@ class Graph:
 		print("H\tVN:Z:1.0", file=fout)
 		for u in self.vertices:
 			seq = self.seq(u)
-			print("S\t", u, "\t", seq, "\tLN:i:", len(seq), "\tRC:i:", self.vertices[u], sep="", file=fout)
+			print("S\t", u, "\t", seq, "\tLN:i:", len(seq), "\tKC:i:", self.vertices[u], sep="", file=fout)
 		for u in self.vertices:
 			for v in self.edges[u]:
 				overlap = overlap_int(self.seq(u), self.seq(v))
-				print("L\t", u, "\t+\t", v, "\t+\t", overlap, "M\tRC:i:", self.edges[u][v], sep="", file=fout)
+				print("L\t", u, "\t+\t", v, "\t+\t", overlap, "M\tKC:i:", self.edges[u][v], sep="", file=fout)
 
 	def write_gfa2(self, fout):
 		"Write this graph to a GFA2 file."
 		print("H\tVN:Z:2.0", file=fout)
 		for u in self.vertices:
 			seq = self.seq(u)
-			print("S\t", u, "\t", len(seq), "\t", seq, "\tRC:i:", self.vertices[u], sep="", file=fout)
+			print("S\t", u, "\t", len(seq), "\t", seq, "\tKC:i:", self.vertices[u], sep="", file=fout)
 		for u in self.vertices:
 			for v in self.edges[u]:
 				useq, vseq = self.seq(u), self.seq(v)
 				overlap = overlap_int(useq, vseq)
 				print("E\t*\t", u, "+\t", v, "+\t",
 					len(useq) - overlap, "\t", len(useq), "$\t0\t", overlap, "\t", overlap, "M",
-					"\tRC:i:", self.edges[u][v], sep="", file=fout)
+					"\tKC:i:", self.edges[u][v], sep="", file=fout)
 
 	def write_graphviz(self, fout):
 		"Write this graph to a Graphviz file."
