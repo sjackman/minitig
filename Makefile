@@ -49,7 +49,7 @@ mt.fa:
 
 # Simulate paired-end reads using wgsim.
 %.pe.fq.gz: %.fa
-	wgsim -e 0.01 -r 0 -d 400 -s 100 -1 150 -2 150 -S 99 -N 3000 $< $*.pe.1.fq $*.pe.2.fq
+	wgsim -e 0.002 -r 0 -d 400 -s 100 -1 150 -2 150 -S 99 -N 3000 $< $*.pe.1.fq $*.pe.2.fq
 	seqtk mergepe $*.pe.1.fq $*.pe.2.fq | $(gzip) >$@
 	rm -f $*.pe.1.fq $*.pe.2.fq
 
