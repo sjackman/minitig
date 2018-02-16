@@ -410,6 +410,8 @@ def parse_arguments():
 
 def main():
 	"Process each file specified on the command line"
+	global ARGS
+	ARGS = parse_arguments()
 	ARGS.FASTA = ["/dev/stdin" if s == "-" else s for s in ARGS.FASTA]
 	if ARGS.command == "assemble":
 		minitig_assemble()
@@ -422,5 +424,4 @@ def main():
 		exit(1)
 
 if __name__ == "__main__":
-	ARGS = parse_arguments()
 	main()
