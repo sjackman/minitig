@@ -4,6 +4,7 @@ Minitig: Assemble reads into contigs using minimizers
 Written by Shaun Jackman @sjackman
 """
 
+from enum import Enum
 import argparse
 import sys
 
@@ -116,14 +117,21 @@ def minimerize(k, w, seq):
 			minimizers.append(minimizer)
 	return minimizers
 
-def overlap(a, b):
+def overlap_int(a, b):
+	"Find the longest overlap of two strings and return the overlap length or 0."
+	if a == "":
+		return 0
+	for i in reversed(range(1, min(len(a), len(b)))):
+		if a[-i:] == b[0:i]:
+			return i
+	return 0
+
+def overlap_seq(a, b):
 	"Find the longest overlap of two strings and return the consensus."
 	if a == "":
 		return b
-	for i in reversed(range(1, min(len(a), len(b)))):
-		if a[-i:] == b[0:i]:
-			return a + b[i:]
-	return a + "-" + b
+	overlap = overlap_int(a, b)
+	return a + b[overlap:] if overlap > 0 else a + "-" + b
 
 class Graph:
 	"A graph of minimizers."
@@ -256,7 +264,7 @@ class Graph:
 		seq = ""
 		for u in path:
 			count += self.vertices[u]
-			seq = overlap(seq, self.seq(u))
+			seq = overlap_seq(seq, self.seq(u))
 		vs = self.edges[path[-1]]
 		self.remove_edge(path[0], path[1])
 		for u in path[1:]:
@@ -278,9 +286,20 @@ class Graph:
 		"Write this graph to a FASTA file."
 		for u in self.vertices:
 			seq = self.seq(u)
-			print(">", u, " LN:i:", len(seq), " mc:i:", self.vertices[u], "\n",
+			print(">", u, " LN:i:", len(seq), " RC:i:", self.vertices[u], "\n",
 				seq,
 				sep="", file=fout)
+
+	def write_gfa1(self, fout):
+		"Write this graph to a GFA1 file."
+		print("H\tVN:Z:1.0", file=fout)
+		for u in self.vertices:
+			seq = self.seq(u)
+			print("S\t", u, "\t", seq, "\tLN:i:", len(seq), "\tRC:i:", self.vertices[u], sep="", file=fout)
+		for u in self.vertices:
+			for v in self.edges[u]:
+				overlap = overlap_int(self.seq(u), self.seq(v))
+				print("L\t", u, "\t+\t", v, "\t+\t", overlap, "M\tRC:i:", self.edges[u][v], sep="", file=fout)
 
 	def write_graphviz(self, fout):
 		"Write this graph to a Graphviz file."
@@ -291,6 +310,13 @@ class Graph:
 			for v in self.edges[u]:
 				print(u, " -> ", v, " [label=", self.edges[u][v], "]", sep="", file=fout)
 		print("}", file=fout)
+
+	def write_graph(self, fout):
+		"Write this graph to a file."
+		if ARGS.graph_format == GraphFormat.GFA1:
+			self.write_gfa1(fout)
+		elif ARGS.graph_format == GraphFormat.GV:
+			self.write_graphviz(fout)
 
 def minitig_assemble():
 	"Assemble unitigs and produce FASTA."
@@ -305,7 +331,7 @@ def minitig_assemble():
 			g.write_fasta(sys.stdout)
 			if ARGS.graph != None:
 				with open(ARGS.graph, "w") as fout:
-					g.write_graphviz(fout)
+					g.write_graph(fout)
 
 def minitig_index():
 	"Index a set of sequences."
@@ -323,6 +349,11 @@ def minitig_graph():
 			for _, seq in read_fasta(fin):
 				g.add_sequence(seq.upper())
 	g.write_graphviz(sys.stdout)
+
+class GraphFormat(Enum):
+	"Graph file format"
+	GFA1 = 1
+	GV = 2
 
 def parse_arguments():
 	"Parse the command line arguments."
@@ -342,6 +373,13 @@ def parse_arguments():
 	argparser.add_argument(
 		"-g", "--graph", action="store",
 		help="write the graph to a file")
+	argparser.add_argument(
+		"--gfa1", action="store_const", dest="graph_format", const=GraphFormat.GFA1,
+		default=GraphFormat.GFA1,
+		help="output graph in GFA1 format [default]")
+	argparser.add_argument(
+		"--gv", action="store_const", dest="graph_format", const=GraphFormat.GV,
+		help="output graph in GraphViz format [GFA]")
 	argparser.add_argument(
 		"command",
 		help="A command: assemble, graph, index")
