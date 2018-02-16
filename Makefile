@@ -30,10 +30,10 @@ lint:
 test: \
 	mt.pe.bfc.minitig.fa \
 	mt.pe.bfc.minitig.mt.sort.bam.bai \
-	mt.pe.bfc.minitig.fa.gv.pdf \
+	mt.pe.bfc.minitig.gfa.png \
 	mt.pe.minitig.fa \
 	mt.pe.minitig.mt.sort.bam.bai \
-	mt.pe.minitig.fa.gv.pdf
+	mt.pe.minitig.gfa.png
 
 # Download the human mitochondrial genome.
 mt.fa:
@@ -94,16 +94,27 @@ mt.fa:
 	gunzip -c $< | ./minitig index -k$k -w$w - >$@
 
 # Create a graph of minimizers of a FASTA file.
-%.minitig.gv: %.fa
+%.minitig.graph.gv: %.fa
 	./minitig graph -k$k -w$w $< >$@
 
 # Create a graph of minimizers of a FASTQ file.
-%.minitig.gv: %.fq.gz
+%.minitig.graph.gv: %.fq.gz
 	gunzip -c $< | ./minitig graph -k$k -w$w - >$@
 
 # Assemble a FASTQ file.
-%.minitig.fa: %.fq.gz
-	gunzip -c $< | ./minitig assemble -k$k -w$w -f$f -g $*.minitig.fa.gv - >$@
+%.minitig.fa %.minitig.gfa: %.fq.gz
+	gunzip -c $< | ./minitig assemble -k$k -w$w -f$f -g $*.minitig.gfa - >$@
+
+################################################################################
+# Bandage
+
+# Render an assembly graph to PNG.
+%.gfa.png: %.gfa
+	bandage image $< $@
+
+# Render an assembly graph to SVG.
+%.gfa.svg: %.gfa
+	bandage image $< $@
 
 ################################################################################
 # Graphviz
