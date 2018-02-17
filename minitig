@@ -136,8 +136,10 @@ def overlap_seq(a, b):
 class Graph:
 	"A graph of minimizers."
 
-	def __init__(self):
+	def __init__(self, k, w):
 		"Create an empty graph."
+		self.k = k
+		self.w = w
 		self.vertices = {}
 		self.seqs = {}
 		self.edges = {}
@@ -153,7 +155,7 @@ class Graph:
 
 	def seq(self, u):
 		"Return the sequence of vertex u."
-		return self.seqs[u] if u in self.seqs else unhash_kmer(u, ARGS.k)
+		return self.seqs[u] if u in self.seqs else unhash_kmer(u, self.k)
 
 	def remove_vertex(self, u):
 		"Remove a vertex from the graph."
@@ -198,7 +200,7 @@ class Graph:
 
 	def add_sequence(self, seq):
 		"Add a sequence to the graph."
-		self.add_path(minimerize(ARGS.k, ARGS.w, seq))
+		self.add_path(minimerize(self.k, self.w, seq))
 
 	def remove_light_vertices(self, min_weight):
 		"Remove vertices with weight < ming_weight."
@@ -325,42 +327,42 @@ class Graph:
 				print(u, " -> ", v, " [label=", self.edges[u][v], "]", sep="", file=fout)
 		print("}", file=fout)
 
-	def write_graph(self, fout):
+	def write_graph(self, fout, graph_format):
 		"Write this graph to a file."
-		if ARGS.graph_format == GraphFormat.GFA1:
+		if graph_format == GraphFormat.GFA1:
 			self.write_gfa1(fout)
-		elif ARGS.graph_format == GraphFormat.GFA2:
+		elif graph_format == GraphFormat.GFA2:
 			self.write_gfa2(fout)
-		elif ARGS.graph_format == GraphFormat.GV:
+		elif graph_format == GraphFormat.GV:
 			self.write_graphviz(fout)
 
-def minitig_assemble():
+def minitig_assemble(args):
 	"Assemble unitigs and produce FASTA."
-	for filename in ARGS.FASTA:
+	for filename in args.FASTA:
 		with open(filename) as fin:
-			g = Graph()
+			g = Graph(args.k, args.w)
 			for _, seq in read_fasta(fin):
 				g.add_sequence(seq.upper())
-			g.remove_light_vertices(ARGS.f)
-			g.erode(ARGS.e)
+			g.remove_light_vertices(args.f)
+			g.erode(args.e)
 			g.compact()
 			g.write_fasta(sys.stdout)
-			if ARGS.graph != None:
-				with open(ARGS.graph, "w") as fout:
-					g.write_graph(fout)
+			if args.graph != None:
+				with open(args.graph, "w") as fout:
+					g.write_graph(fout, args.graph_format)
 
-def minitig_index():
+def minitig_index(args):
 	"Index a set of sequences."
-	for filename in ARGS.FASTA:
+	for filename in args.FASTA:
 		with open(filename) as fin:
 			for _, seq in read_fasta(fin):
 				seq = seq.upper()
-				print(minimerize(ARGS.k, ARGS.w, seq))
+				print(minimerize(args.k, args.w, seq))
 
-def minitig_graph():
+def minitig_graph(args):
 	"Create a graph of the minimizers."
-	g = Graph()
-	for filename in ARGS.FASTA:
+	g = Graph(args.k, args.w)
+	for filename in args.FASTA:
 		with open(filename) as fin:
 			for _, seq in read_fasta(fin):
 				g.add_sequence(seq.upper())
@@ -410,17 +412,16 @@ def parse_arguments():
 
 def main():
 	"Process each file specified on the command line"
-	global ARGS
-	ARGS = parse_arguments()
-	ARGS.FASTA = ["/dev/stdin" if s == "-" else s for s in ARGS.FASTA]
-	if ARGS.command == "assemble":
-		minitig_assemble()
-	elif ARGS.command == "graph":
-		minitig_graph()
-	elif ARGS.command == "index":
-		minitig_index()
+	args = parse_arguments()
+	args.FASTA = ["/dev/stdin" if s == "-" else s for s in args.FASTA]
+	if args.command == "assemble":
+		minitig_assemble(args)
+	elif args.command == "graph":
+		minitig_graph(args)
+	elif args.command == "index":
+		minitig_index(args)
 	else:
-		print("Unrecognized command: ", ARGS.command, file=sys.stderr)
+		print("Unrecognized command: ", args.command, file=sys.stderr)
 		exit(1)
 
 if __name__ == "__main__":
