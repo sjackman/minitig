@@ -103,7 +103,7 @@ mt.fa:
 
 # Assemble a FASTQ file.
 %.minitig.fa %.minitig.gfa: %.fq.gz
-	gunzip -c $< | ./minitig assemble -k$k -w$w -f$f -g $*.minitig.gfa - >$@
+	gunzip -c $< | ./minitig assemble -k$k -w$w -f$f -g $*.minitig.gfa - >$*.minitig.fa
 
 ################################################################################
 # Bandage
