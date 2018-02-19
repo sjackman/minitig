@@ -6,14 +6,19 @@ Written by Shaun Jackman @sjackman
 
 from enum import Enum
 import argparse
+import re
 import sys
 
 from readfq import read_fasta
 
+ACGT = re.compile("^[ACGT]+$")
+
 def kmerize(k, seq):
 	"Iterator over the kmers of a string."
 	for i in range(0, len(seq) - k + 1):
-		yield seq[i : i + k]
+		kmer = seq[i : i + k]
+		if ACGT.match(kmer):
+			yield kmer
 
 def hash_int(key, mask=0xffffffffffffffff):
 	"""
@@ -76,6 +81,9 @@ TRANSLATE_ACGT_0123 = str.maketrans("ACGT", "\0\1\2\3")
 
 # Translate the ASCII 0-3 to ACGT.
 TRANSLATE_0123_ACGT = str.maketrans("\0\1\2\3", "ACGT")
+
+# Translate the ACGT to TGCA.
+TRANSLATE_ACGT_TGCA = str.maketrans("ACGT", "TGCA")
 
 def kmer_to_int(kmer):
 	"Convert a k-mer to an integer."
@@ -198,9 +206,9 @@ class Graph:
 		for u, v in zip(path, path[1:]):
 			self.add_edge(u, v)
 
-	def add_sequence(self, seq):
+	def add_sequence(self, seq, k, w):
 		"Add a sequence to the graph."
-		self.add_path(minimerize(self.k, self.w, seq))
+		self.add_path(minimerize(k, w, seq.upper()))
 
 	def remove_light_vertices(self, min_weight):
 		"Remove vertices with weight < ming_weight."
@@ -342,7 +350,7 @@ def minitig_assemble(args):
 		with open(filename) as fin:
 			g = Graph(args.k, args.w)
 			for _, seq in read_fasta(fin):
-				g.add_sequence(seq.upper())
+				g.add_sequence(seq, args.k, args.w)
 			g.remove_light_vertices(args.f)
 			g.erode(args.e)
 			g.compact()
@@ -364,8 +372,14 @@ def minitig_graph(args):
 	g = Graph(args.k, args.w)
 	for filename in args.FASTA:
 		with open(filename) as fin:
-			for _, seq in read_fasta(fin):
-				g.add_sequence(seq.upper())
+			it = iter(read_fasta(fin))
+			for _, seq1 in it:
+				_, seq2 = next(it)
+				seq2rc = seq2.translate(TRANSLATE_ACGT_TGCA)[::-1]
+				g.add_sequence(seq1, args.k, args.w)
+				g.add_sequence(seq2rc, args.k, args.w)
+				g.add_sequence(seq1 + "-" + seq2rc, args.k, 150-32+1)
+	g.remove_light_vertices(args.f)
 	g.write_graphviz(sys.stdout)
 
 class GraphFormat(Enum):
