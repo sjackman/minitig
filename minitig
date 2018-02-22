@@ -295,6 +295,33 @@ class Graph:
 				if w in self.edges[u]:
 					self.remove_edge(u, w)
 
+	def topological_sort(self):
+		"Return the vertices in topological order."
+		order = []
+		colour = {}
+		stack = [(u, False) for u in self.vertices if self.in_degree(u) == 0]
+		while stack:
+			u, finished = stack.pop()
+			if finished:
+				colour[u] = True
+				order.append(u)
+				continue
+			assert u not in colour
+			colour[u] = False
+			stack.append((u, True))
+			for v in self.edges[u]:
+				if v not in colour:
+					# White vertex, tree edge
+					stack.append((v, False))
+				elif not colour[v]:
+					# Grey vertex, back edge
+					pass
+				else:
+					# Black vertex, forward edge
+					pass
+		order.reverse()
+		return order
+
 	def compact(self):
 		"Compact the graph by contracting all simple paths."
 		for u in list(self.vertices):
