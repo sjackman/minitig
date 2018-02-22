@@ -285,6 +285,16 @@ class Graph:
 		for v in vs:
 			self.add_edge(u, v)
 
+	def remove_transitive_edges(self):
+		"Remove unambiguous transitive edges with a maximum distance of 2."
+		for u in self.vertices:
+			for v in list(self.edges[u]):
+				if self.out_degree(v) != 1:
+					continue
+				w = next(iter(self.edges[v]))
+				if w in self.edges[u]:
+					self.remove_edge(u, w)
+
 	def compact(self):
 		"Compact the graph by contracting all simple paths."
 		for u in list(self.vertices):
@@ -350,9 +360,12 @@ def minitig_assemble(args):
 		with open(filename) as fin:
 			g = Graph(args.k, args.w)
 			for _, seq in read_fasta(fin):
+				g.add_sequence(seq, args.k, args.k - 4)
 				g.add_sequence(seq, args.k, args.w)
 			g.remove_light_vertices(args.f)
 			g.erode(args.e)
+			g.compact()
+			g.remove_transitive_edges()
 			g.compact()
 			g.write_fasta(sys.stdout)
 			if args.graph != None:
@@ -373,12 +386,9 @@ def minitig_graph(args):
 	for filename in args.FASTA:
 		with open(filename) as fin:
 			it = iter(read_fasta(fin))
-			for _, seq1 in it:
-				_, seq2 = next(it)
-				seq2rc = seq2.translate(TRANSLATE_ACGT_TGCA)[::-1]
-				g.add_sequence(seq1, args.k, args.w)
-				g.add_sequence(seq2rc, args.k, args.w)
-				g.add_sequence(seq1 + "-" + seq2rc, args.k, 150-32+1)
+			for _, seq in it:
+				g.add_sequence(seq, args.k, args.k - 4)
+				g.add_sequence(seq, args.k, args.w)
 	g.remove_light_vertices(args.f)
 	g.write_graphviz(sys.stdout)
 
