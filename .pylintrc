@@ -4,4 +4,4 @@ good-names = a, b, c, e, g, i, it, k, n, u, v, vs, w, x, xs
 indent-string='\t'
 
 [messages control]
-disable=C0330
+disable=C0330,R0904
