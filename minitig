@@ -285,7 +285,7 @@ class Graph:
 		for v in vs:
 			self.add_edge(u, v)
 
-	def remove_transitive_edges(self):
+	def remove_short_transitive_edges(self):
 		"Remove unambiguous transitive edges with a maximum distance of 2."
 		for u in self.vertices:
 			for v in list(self.edges[u]):
@@ -321,6 +321,43 @@ class Graph:
 					pass
 		order.reverse()
 		return order
+
+	def reachable(self, start):
+		"Return the vertices reachable from start, and their distances."
+		distance = {start: 0}
+		colour = {}
+		stack = [(start, False)]
+		while stack:
+			u, finished = stack.pop()
+			if finished:
+				colour[u] = True
+				continue
+			assert u not in colour
+			colour[u] = False
+			stack.append((u, True))
+			for v in self.edges[u]:
+				if v not in colour:
+					# White vertex, tree edge
+					stack.append((v, False))
+					assert v not in distance
+					distance[v] = distance[u] + 1
+				elif not colour[v]:
+					# Grey vertex, back edge
+					print("warning: cycle:", u, "->", v, file=sys.stderr)
+				else:
+					# Black vertex, forward edge
+					distance[v] = max(distance[v], distance[u] + 1)
+		return distance
+
+	def find_transitive_edges(self):
+		"Return the transitive edges of this graph."
+		transitive_edges = []
+		for u in self.vertices:
+			distance = self.reachable(u)
+			for v in self.edges[u]:
+				if v in distance and distance[v] > 1:
+					transitive_edges.append((u, v, distance[v]))
+		return transitive_edges
 
 	def compact(self):
 		"Compact the graph by contracting all simple paths."
@@ -392,7 +429,7 @@ def minitig_assemble(args):
 			g.remove_light_vertices(args.f)
 			g.erode(args.e)
 			g.compact()
-			g.remove_transitive_edges()
+			g.remove_short_transitive_edges()
 			g.compact()
 			g.write_fasta(sys.stdout)
 			if args.graph != None:
